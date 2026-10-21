@@ -415,7 +415,7 @@
     }
 
     .swipe-zone {
-      touch-action: pan-y;
+      touch-action: none;
       max-width: 100%;
       transition: box-shadow .3s, transform .3s;
     }
@@ -753,6 +753,11 @@
 
     .envelope {
       filter: drop-shadow(0 8px 12px rgba(193, 59, 99, .12));
+      transition: transform .2s cubic-bezier(.22, 1, .36, 1), opacity .3s ease;
+    }
+
+    .swipe-zone.is-dragging .envelope {
+      transition: none;
     }
 
     .code-input {
@@ -1273,20 +1278,26 @@
     const zone = document.getElementById('swipeZone'), env = document.getElementById('envelope'),
       peek = document.getElementById('letterPeek');
     let startY = null, swiped = false;
-    function pos(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
-    zone.addEventListener('pointerdown', e => { startY = e.clientY; zone.setPointerCapture?.(e.pointerId); });
+    zone.addEventListener('pointerdown', e => {
+      if (!e.isPrimary || e.button !== 0 || swiped) return;
+      startY = e.clientY;
+      zone.classList.add('is-dragging');
+      zone.setPointerCapture(e.pointerId);
+    });
     zone.addEventListener('pointermove', e => {
       if (startY === null || swiped) return;
       const dy = startY - e.clientY;
-      if (dy > 60) { unlock(); startY = null; }
-      else env.style.transform = 'translateY(' + (-Math.max(dy, 0)) + 'px)';
+      if (dy > 45) { unlock(); startY = null; }
+      else env.style.transform = 'translateY(' + (-Math.min(Math.max(dy, 0), 160)) + 'px)';
     });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => zone.addEventListener(ev, () => {
       if (!swiped) env.style.transform = '';
       startY = null;
+      zone.classList.remove('is-dragging');
     }));
     function unlock() {
       if (swiped) return; swiped = true;
+      zone.classList.remove('is-dragging');
       env.style.transform = 'translateY(-160px)'; env.style.opacity = '0';
       peek.style.opacity = '1';
       const r = zone.getBoundingClientRect();
@@ -1317,7 +1328,7 @@
     let lit = 0;
     candles.forEach(c => c.addEventListener('click', () => {
       if (c.classList.contains('lit')) return;
-      c.classList.add('lit'); c.textContent = '🕯️✨'; lit++;
+      c.classList.add('lit'); lit++;
       const r = c.getBoundingClientRect();
       sparkleBurst(r.left + r.width / 2, r.top, 8);
       if (lit === candles.length) {
